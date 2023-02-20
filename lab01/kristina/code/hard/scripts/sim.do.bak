@@ -1,0 +1,87 @@
+#!/usr/bin/tclsh
+
+# Main proc at the end #
+
+#------------------------------------------------------------------------------
+proc vhdl_compil { } {
+  global Path_VHDL
+  global Path_TB
+
+  puts "\nVHDL compilation :"
+
+  vcom -2008 $Path_VHDL/math_computer.vhd
+  vcom -2008 $Path_VHDL/avalon_computer.vhd
+  vcom -2008 $Path_TB/avalon_computer_tb.vhd
+}
+
+#------------------------------------------------------------------------------
+proc sim_start {N ADDRSIZE DATASIZE ERRNO TESTCASE} {
+
+  vsim -t 1ns -GN=$N -GADDRSIZE=$ADDRSIZE -GDATASIZE=$DATASIZE -GERRNO=$ERRNO -GTESTCASE=$TESTCASE work.avalon_computer_tb
+  #do wave.do
+  add wave -divider "Tesbench signals"
+  add wave /*
+  add wave -divider "DUT signals"
+  add wave dut/*
+  add wave -divider "Math computer signals"
+  add wave dut/MATH_COMPUTER_INST/*
+  wave refresh
+  run -all
+}
+
+#------------------------------------------------------------------------------
+proc do_all {N ADDRSIZE DATASIZE ERRNO TESTCASE} {
+  vhdl_compil
+  sim_start $N $ADDRSIZE $DATASIZE $ERRNO $TESTCASE
+}
+
+## MAIN #######################################################################
+
+if {$argc==1} {
+  if {[string compare $1 "help"] == 0} {
+    puts "Call this script with one of the following options:"
+    puts "    all         : compiles and run, with 4 arguments (see below)"
+    puts "    comp_vhdl   : compiles all the VHDL files"
+    puts "    sim         : starts a simulation, with 4 arguments (see below)"
+    puts "    help        : prints this help"
+    puts "    no argument : compiles and run with N=3, ADDRSIZE=4, DATASIZE=8, ERRNO=0, TESTCASE=0"
+    puts ""
+    puts "When 4 arguments are required, the order is:"
+    puts "    1: value of N for the computation"
+    puts "    2: ADDRSIZE, so the size of adresse"
+    puts "    3: DATASIZE, so the size of data"
+    puts "    4: ERRNO value to be passed to instrumentalized DUV"
+    puts "    5: TESTCASE number of the testcase (0 = all)"
+    exit
+  }
+}
+
+# Compile folder ----------------------------------------------------
+if {[file exists work] == 0} {
+  vlib work
+}
+
+quietly set Path_VHDL     "../src_vhdl"
+quietly set Path_TB       "../src_tb"
+
+puts -nonewline "  Path_VHDL => "
+puts $Path_VHDL
+puts -nonewline "  Path_TB   => "
+puts $Path_TB
+
+global Path_VHDL
+global Path_TB
+
+# start of sequence -------------------------------------------------
+
+if {$argc>0} {
+  if {[string compare $1 "all"] == 0} {
+    do_all $2 $3 $4 $5 $6
+  } elseif {[string compare $1 "comp_vhdl"] == 0} {
+    vhdl_compil
+  } elseif {[string compare $1 "sim"] == 0} {
+    sim_start $2 $3 $4 $5 $6
+  } 
+} else {
+  #do_all 3 4 8 0 0
+}
