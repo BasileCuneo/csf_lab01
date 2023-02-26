@@ -3,99 +3,57 @@
 # Main proc at the end #
 
 #------------------------------------------------------------------------------
-proc vhdl_compil { } {
+proc vhdl_compile { student } {
   global Path_VHDL
   global Path_TB
 
+  set Path_VHDL ../../../../$student/code/hard/src_vhdl
+
+  puts "\nPath_VHDL => ../../../../$student/code/hard/src_vhdl"
+
   puts "\nVHDL compilation :"
 
-  vcom -2008 $Path_VHDL/math_computer.vhd
-  vcom -2008 $Path_VHDL/avalon_computer.vhd
-
-  vcom -2008 $Path_TB/html_report_pkg.vhd
-  vcom -2008 $Path_TB/logger_html_pkg.vhd
-  vcom -2008 $Path_TB/project_logger_pkg.vhd
-  vcom -2008 $Path_TB/common_pkg.vhd
-  vcom -2008 $Path_TB/avalon_types_pkg.vhd
-  vcom -2008 $Path_TB/avalon_bfm_pkg.vhd
-  vcom -2008 $Path_TB/test_avalon_pkg.vhd
-  vcom -2008 $Path_TB/test_control_pkg.vhd
-  vcom -2008 $Path_TB/test_computing_pkg.vhd
-  vcom -2008 $Path_TB/avalon_computer_tb.vhd
+  vcom -2008 $Path_VHDL/IP_Qsys/avalon_bus_bridge.vhd
+  vcom -2008 $Path_VHDL/avl_counter.vhd
+  vlog -sv $Path_TB/avl_counter_tb.sv
 }
 
 #------------------------------------------------------------------------------
-proc sim_start {N ADDRSIZE DATASIZE ERRNO TESTCASE} {
+proc sim_start { testcase } {
 
-  vsim -t 1ns -GN=$N -GADDRSIZE=$ADDRSIZE -GDATASIZE=$DATASIZE -GERRNO=$ERRNO -GTESTCASE=$TESTCASE work.avalon_computer_tb
-  set NumericStdNoWarnings 1
-  run 0 ps
-  set NumericStdNoWarnings 0
-  #do wave.do
-  add wave -divider "Tesbench signals"
-  add wave /*
-  # Cannot add signals, as the architecture is protected
-  #  add wave -divider "DUT signals"
-  #  add wave dut/*
-  #  add wave -divider "Math computer signals"
-  #  add wave dut/MATH_COMPUTER_INST/*
+  vsim -t 1ns -GTESTCASE=$testcase work.avl_counter_tb
+  add wave -r *
   wave refresh
   run -all
 }
 
 #------------------------------------------------------------------------------
-proc do_all {N ADDRSIZE DATASIZE ERRNO TESTCASE} {
-  vhdl_compil
-  sim_start $N $ADDRSIZE $DATASIZE $ERRNO $TESTCASE
+proc do_all { student testcase } {
+  vhdl_compile $student
+  sim_start  $testcase
 }
 
 ## MAIN #######################################################################
-
-if {$argc==1} {
-  if {[string compare $1 "help"] == 0} {
-    puts "Call this script with one of the following options:"
-    puts "    all         : compiles and run, with 5 arguments (see below)"
-    puts "    comp_vhdl   : compiles all the VHDL files"
-    puts "    sim         : starts a simulation, with 5 arguments (see below)"
-    puts "    help        : prints this help"
-    puts "    no argument : compiles and run with N=3, ADDRSIZE=4, DATASIZE=16, ERRNO=0, TESTCASE=0"
-    puts ""
-    puts "When 4 arguments are required, the order is:"
-    puts "    1: value of N for the computation"
-    puts "    2: ADDRSIZE, so the size of adresse"
-    puts "    3: DATASIZE, so the size of data"
-    puts "    4: ERRNO value to be passed to instrumentalized DUV"
-    puts "    5: TESTCASE number of the testcase (0 = all)"
-    exit
-  }
-}
 
 # Compile folder ----------------------------------------------------
 if {[file exists work] == 0} {
   vlib work
 }
 
-quietly set Path_VHDL     "../src_vhdl"
-quietly set Path_TB       "../src_tb"
-
-puts -nonewline "  Path_VHDL => "
-puts $Path_VHDL
-puts -nonewline "  Path_TB   => "
-puts $Path_TB
+set Path_TB ../../../../basile/code/hard/src_tb
 
 global Path_VHDL
 global Path_TB
 
 # start of sequence -------------------------------------------------
 
-if {$argc>0} {
-  if {[string compare $1 "all"] == 0} {
-    do_all $2 $3 $4 $5 $6
-  } elseif {[string compare $1 "comp_vhdl"] == 0} {
-    vhdl_compil
-  } elseif {[string compare $1 "sim"] == 0} {
-    sim_start $2 $3 $4 $5 $6
+if {$argc == 2} {
+  if {[string compare $1 "kristina"] == 0 || [string compare $1 "jeremy"] == 0} {
+    do_all $1 $2
+  } else {
+    puts "Usage: $argv0 <kristina|jeremy> <testcase>"
   }
 } else {
-  do_all 3 8 16 0 0
+  #print usage
+  puts "Usage: $argv0 <kristina|jeremy> <testcase>"
 }
