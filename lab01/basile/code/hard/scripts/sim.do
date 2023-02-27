@@ -13,7 +13,6 @@ proc vhdl_compile { student } {
 
   puts "\nVHDL compilation :"
 
-  vcom -2008 $Path_VHDL/IP_Qsys/avalon_bus_bridge.vhd
   vcom -2008 $Path_VHDL/avl_counter.vhd
   vlog -sv $Path_TB/avl_counter_tb.sv
 }
