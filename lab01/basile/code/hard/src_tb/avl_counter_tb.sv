@@ -179,7 +179,7 @@ module avl_counter_tb#(int TESTCASE=0);
         end 
         
         //write to register 3 and checking all other registers
-        for(idx = 4294967195; idx < 4294967295; idx = idx + 1) begin
+        for(idx = 64'd4294967195; idx < 64'd4294967295; idx = idx + 1) begin
             avalon_write (3, 15, idx);
             avalon_read (3, tmp);
             assert(tmp == idx) else $error("register at address 3 has the wrong value which is %d instead of %d", tmp, idx);
@@ -192,10 +192,10 @@ module avl_counter_tb#(int TESTCASE=0);
         end
 
         //write to register 4 and checking all other registers
-        for(idx = 4294967195; idx < 4294967295; idx = idx + 1) begin
+        for(idx = 64'd4294967195; idx < 64'd4294967295; idx = idx + 1) begin
             avalon_write (4, 15, idx);
             avalon_read (3, tmp);
-            assert(tmp == 4294967294) else $error("register at address 3 should not have changed with a write to address 4");
+            assert(tmp == 64'd4294967294) else $error("register at address 3 should not have changed with a write to address 4");
             avalon_read (4, tmp);
             assert(tmp == idx) else $error("register at address 4 has the wrong value which is %d instead of %d", tmp, idx);
             avalon_read (5, tmp);
@@ -205,12 +205,12 @@ module avl_counter_tb#(int TESTCASE=0);
         end
 
         //write to register 5 and checking all other registers
-        for(idx = 4294967195; idx < 4294967295; idx = idx + 1) begin
+        for(idx = 64'd4294967195; idx < 64'd4294967295; idx = idx + 1) begin
             avalon_write (5, 15, idx);
             avalon_read (3, tmp);
-            assert(tmp == 4294967294) else $error("register at address 3 should not have changed with a write to address 5");
+            assert(tmp == 64'd4294967294) else $error("register at address 3 should not have changed with a write to address 5");
             avalon_read (4, tmp);
-            assert(tmp == 4294967294) else $error("register at address 4 should not have changed with a write to address 5");
+            assert(tmp == 64'd4294967294) else $error("register at address 4 should not have changed with a write to address 5");
             avalon_read (5, tmp);
             assert(tmp == idx) else $error("register at address 5 has the wrong value which is %d instead of %d", tmp, idx);
             avalon_read (6, tmp);
@@ -218,14 +218,14 @@ module avl_counter_tb#(int TESTCASE=0);
         end
 
         //write to register 6 and checking all other registers
-        for(idx = 4294967195; idx < 4294967295; idx = idx + 1) begin
+        for(idx = 64'd4294967195; idx < 64'd4294967295; idx = idx + 1) begin
             avalon_write (6, 15, idx);
             avalon_read (3, tmp);
-            assert(tmp == 4294967294) else $error("register at address 3 should not have changed with a write to address 6");
+            assert(tmp == 64'd4294967294) else $error("register at address 3 should not have changed with a write to address 6");
             avalon_read (4, tmp);
-            assert(tmp == 4294967294) else $error("register at address 4 should not have changed with a write to address 6");
+            assert(tmp == 64'd4294967294) else $error("register at address 4 should not have changed with a write to address 6");
             avalon_read (5, tmp);
-            assert(tmp == 4294967294) else $error("register at address 5 should not have changed with a write to address 6");
+            assert(tmp == 64'd4294967294) else $error("register at address 5 should not have changed with a write to address 6");
             avalon_read (6, tmp);
             assert(tmp == idx) else $error("register at address 6 has the wrong value which is %d instead of %d", tmp, idx);
         end
