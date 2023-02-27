@@ -3,11 +3,11 @@ module avl_counter_tb#(int TESTCASE=0);
     logic avl_clk = 0;
     logic avl_reset;
     logic [2:0] avl_address;
-    logic avl_write;
-    logic [31:0] avl_writedata;
     logic avl_read;
     logic avl_readdatavalid;
     logic [31:0] avl_readdata;
+    logic avl_write;
+    logic [31:0] avl_writedata;
     logic [3:0] avl_byteenable;
     logic avl_waitrequest;
 
@@ -15,146 +15,395 @@ module avl_counter_tb#(int TESTCASE=0);
         .avl_clk(avl_clk),
         .avl_reset(avl_reset),
         .avl_address(avl_address),
-        .avl_write(avl_write),
-        .avl_writedata(avl_writedata),
         .avl_read(avl_read),
         .avl_readdatavalid(avl_readdatavalid),
         .avl_readdata(avl_readdata),
+        .avl_write(avl_write),
+        .avl_writedata(avl_writedata),
         .avl_byteenable(avl_byteenable),
         .avl_waitrequest(avl_waitrequest)
     );
 
-    
-    // clock generation
+    // clock generator
     always #5 avl_clk = ~avl_clk;
 
-    task wait_for(input logic signal, input int value, input int timeout, output int is_successfull);
-        automatic int i = 0;
-        is_successfull = 1;
-        do begin
-            @(posedge avl_clk);
-            i = i + 1;
-            assert (i < timeout)
-                else begin 
-                    $error("Error : timeout when waiting for signal");
-                    is_successfull = 0;
+    // function to wait for an event
+    task wait_event(input logic signal, input logic value, input int timeout);
+        begin
+            int i;
+            for (i = 0; i < timeout; i = i + 1) begin
+                @(posedge avl_clk);
+                if (signal == value) begin
                     break;
                 end
-        end while(signal == value);
-        i = 0;
+            end
+        end
     endtask
 
-    // Function read on avalon bus
-    task read(input int address, input int byteenable, output int result);
+    // avalon write function
+    task avalon_write(input int addr, input int byteenable, input int data);
         begin
-            automatic int is_successfull;
-            avl_address = address;
+            avl_address = addr;
             avl_byteenable = byteenable;
+            avl_read = 0;
+            avl_writedata = data;
+            avl_write = 1;
+
+            wait_event(avl_waitrequest, 1, 15);
+            assert(avl_waitrequest == 1) else $error("waitrequest didnt rise on write");
+
+            wait_event(avl_waitrequest, 0, 15);
+            assert(avl_waitrequest == 0) else $error("waitrequest didnt fall on write");
+            
+            avl_write = 0;
+
+            @(posedge avl_clk);
+        end
+    endtask
+
+    // avalon read function 
+    task avalon_read(input int addr, output int data);
+        begin
+            avl_address = addr;
+            avl_byteenable = 15;
             avl_read = 1;
             avl_write = 0;
 
-            wait_for(avl_readdatavalid, 1, 20, is_successfull);
-            if(is_successfull != 1)
-                $error("Error : read failed on address %h, readdatavalid not raised up", address);
+            wait_event(avl_waitrequest, 1, 15);
+            assert(avl_waitrequest == 1) else $error("waitrequest didnt rise on read");
 
-            result = avl_readdata;
+            wait_event(avl_readdatavalid, 1, 15);
+            assert(avl_readdatavalid == 1) else $error("readdatavalid didnt rise on read");
 
-            wait_for(avl_readdatavalid, 0, 20, is_successfull);
-            if(is_successfull != 1)
-                $error("Error : read failed on address %h, readdatavalid not raised down", address);
+            data = avl_readdata;
+
+            wait_event(avl_waitrequest, 0, 15);
+            assert(avl_waitrequest == 0) else $error("waitrequest didnt fall on read");
 
             avl_read = 0;
-            @(posedge avl_clk);
-        end        
-    endtask
 
-    // Function write on avalon bus
-    task write(input int address, input int byteenable, input int data);
-        begin
-            automatic int is_successfull;
-            avl_address = address;
-            avl_byteenable = byteenable;
-            avl_writedata = data;
-            avl_read = 0;
-            avl_write = 1;
+            wait_event(avl_readdatavalid, 0, 15);
+            assert(avl_readdatavalid == 0) else $error("readdatavalid didnt fall on read");
 
-            wait_for(avl_waitrequest, 1, 20, is_successfull);
-            if(is_successfull != 1)
-                $error("Error : write failed on address %h, waitrequest not raised down", address);
-
-            wait_for(avl_waitrequest, 0, 20, is_successfull);
-            if(is_successfull != 1)
-                $error("Error : write failed on address %h, waitrequest not raised up", address);
-
-            avl_write = 0;
             @(posedge avl_clk);
         end
     endtask
 
     initial begin
-        int result;
-        $display("Starting testbench");
+        int tmp;
+        longint unsigned idx;
+        $display("avl_counter_tb started, now reseting");
 
-        // Reset
-        $display("Reset");
         @(posedge avl_clk);
         avl_reset = 1;
         @(posedge avl_clk);
-        @(posedge avl_clk);
         avl_reset = 0;
         @(posedge avl_clk);
-        @(posedge avl_clk);
 
-        // Read constant
-        $display("Read constant");
+        $display("reset done, now testing");
+        $display("testing read on constant value at address 0");
+        avalon_read(0, tmp);
+        assert(tmp == 'hD0D0C5F0) else $error("constant value at address 0 has the wrong value");
+
+        //READ / WRITE ON STANDARD REGISTERS ===============================================================
+        $display("testing some read and writes on basic registers at addr 3, 4, 5 and 6")
+
+        //some low values ===================================================================================
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end 
+
+        //write to register 3 and checking all other registers
+        for(idx = 0; idx < 100; idx = idx + 1) begin
+            avalon_write (3, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == idx) else $error("register at address 3 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (4, tmp);
+            assert(tmp == 0) else $error("register at address 4 should not have changed with a write to address 3");
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 3");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 3");
+        end
+
+        //write to register 4 and checking all other registers
+        for(idx = 0; idx < 100; idx = idx + 1) begin
+            avalon_write (4, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 99) else $error("register at address 3 should not have changed with a write to address 4");
+            avalon_read (4, tmp);
+            assert(tmp == idx) else $error("register at address 4 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 4");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 4");
+        end
+
+        //write to register 5 and checking all other registers
+        for(idx = 0; idx < 100; idx = idx + 1) begin
+            avalon_write (5, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 99) else $error("register at address 3 should not have changed with a write to address 5");
+            avalon_read (4, tmp);
+            assert(tmp == 99) else $error("register at address 4 should not have changed with a write to address 5");
+            avalon_read (5, tmp);
+            assert(tmp == idx) else $error("register at address 5 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 5");
+        end
+
+        //write to register 6 and checking all other registers
+        for(idx = 0; idx < 100; idx = idx + 1) begin
+            avalon_write (6, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 99) else $error("register at address 3 should not have changed with a write to address 6");
+            avalon_read (4, tmp);
+            assert(tmp == 99) else $error("register at address 4 should not have changed with a write to address 6");
+            avalon_read (5, tmp);
+            assert(tmp == 99) else $error("register at address 5 should not have changed with a write to address 6");
+            avalon_read (6, tmp);
+            assert(tmp == idx) else $error("register at address 6 has the wrong value which is %d instead of %d", tmp, idx);
+        end
+
+        //some high values ===================================================================================
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end 
         
-        read(0, 15, result);
-        assert (result == 'hC5F02023)
-            else $error("Error : read constant is %h instead of %h", result, 'hC5F02023);
-
-
-        // Counter test
-        $display("Counter test");
-
-        // Reset counter
-        write(2, 15, 1);
-
-        // Check if counter is 0
-        read(1, 15, result);
-        assert (result == 0)
-            else $error("Error : counter is %h instead of 0 after reset", result);
-
-        // Increment counter
-        for(int i = 0; i < 10; i = i + 1) begin
-            write(2, 15, 2);
-            read(1, 15, result);
-            assert (result == i + 1)
-                else $error("Error : counter is %h instead of %h after increment", result, i + 1);
+        //write to register 3 and checking all other registers
+        for(idx = 4294967195; idx < 4294967296; idx = idx + 1) begin
+            avalon_write (3, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == idx) else $error("register at address 3 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (4, tmp);
+            assert(tmp == 0) else $error("register at address 4 should not have changed with a write to address 3");
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 3");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 3");
         end
 
-        // Reset counter
-        write(2, 15, 1);
-
-        // Check if counter is 0
-        read(1, 15, result);
-        assert (result == 0)
-            else $error("Error : counter is %h instead of 0 after reset", result);
-
-        // Check if other read/write registers work with byteenable
-        /*
-        $display("Check if other read/write registers work with byteenable");
-        for(int r = 3; r < 7; r = r + 1) begin
-            for(int i = 0; i < 4; i = i + 1) begin
-                write(r, 1 << i, i);
-                read(r, 15, result);
-                assert (result == i)
-                    else $error("Error : register %h is %h instead of %h after write", r, result, i);
-            end
+        //write to register 4 and checking all other registers
+        for(idx = 4294967195; idx < 4294967296; idx = idx + 1) begin
+            avalon_write (4, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 4294967295) else $error("register at address 3 should not have changed with a write to address 4");
+            avalon_read (4, tmp);
+            assert(tmp == idx) else $error("register at address 4 has the wrong value which is %d instead of %d", tmp, idx;
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 4");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 4");
         end
-        */
 
+        //write to register 5 and checking all other registers
+        for(idx = 4294967195; idx < 4294967296; idx = idx + 1) begin
+            avalon_write (5, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 4294967295) else $error("register at address 3 should not have changed with a write to address 5");
+            avalon_read (4, tmp);
+            assert(tmp == 4294967295) else $error("register at address 4 should not have changed with a write to address 5");
+            avalon_read (5, tmp);
+            assert(tmp == idx) else $error("register at address 5 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 5");
+        end
 
+        //write to register 6 and checking all other registers
+        for(idx = 4294967195; idx < 4294967296; idx = idx + 1) begin
+            avalon_write (6, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 4294967295) else $error("register at address 3 should not have changed with a write to address 6");
+            avalon_read (4, tmp);
+            assert(tmp == 4294967295) else $error("register at address 4 should not have changed with a write to address 6");
+            avalon_read (5, tmp);
+            assert(tmp == 4294967295) else $error("register at address 5 should not have changed with a write to address 6");
+            avalon_read (6, tmp);
+            assert(tmp == idx) else $error("register at address 6 has the wrong value which is %d instead of %d", tmp, idx);
+        end
 
+        //some standard values ===================================================================================
+    
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end 
+        
+        //write to register 3 and checking all other registers
+        for(idx = 0; idx < 1000000; idx = idx + 100) begin
+            avalon_write (3, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == idx) else $error("register at address 3 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (4, tmp);
+            assert(tmp == 0) else $error("register at address 4 should not have changed with a write to address 3");
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 3");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 3");
+        end
+
+        //write to register 4 and checking all other registers
+        for(idx = 0; idx < 1000000; idx = idx + 100) begin
+            avalon_write (4, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 999900) else $error("register at address 3 should not have changed with a write to address 4");
+            avalon_read (4, tmp);
+            assert(tmp == idx) else $error("register at address 4 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (5, tmp);
+            assert(tmp == 0) else $error("register at address 5 should not have changed with a write to address 4");
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 4");
+        end
+
+        //write to register 5 and checking all other registers
+        for(idx = 0; idx < 1000000; idx = idx + 100) begin
+            avalon_write (5, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 999900) else $error("register at address 3 should not have changed with a write to address 5");
+            avalon_read (4, tmp);
+            assert(tmp == 999900) else $error("register at address 4 should not have changed with a write to address 5");
+            avalon_read (5, tmp);
+            assert(tmp == idx) else $error("register at address 5 has the wrong value which is %d instead of %d", tmp, idx);
+            avalon_read (6, tmp);
+            assert(tmp == 0) else $error("register at address 6 should not have changed with a write to address 5");
+        end
+
+        //write to register 6 and checking all other registers
+        for(idx = 0; idx < 1000000; idx = idx + 100) begin
+            avalon_write (6, 15, idx);
+            avalon_read (3, tmp);
+            assert(tmp == 999900) else $error("register at address 3 should not have changed with a write to address 6");
+            avalon_read (4, tmp);
+            assert(tmp == 999900) else $error("register at address 4 should not have changed with a write to address 6");
+            avalon_read (5, tmp);
+            assert(tmp == 999900) else $error("register at address 5 should not have changed with a write to address 6");
+            avalon_read (6, tmp);
+            assert(tmp == idx) else $error("register at address 6 has the wrong value which is %d instead of %d", tmp, idx);
+        end
+
+        // BYTE ENABLE TESTING ========================================================================  
+        $display("Testing byte enables");
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 1
+
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 1, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hff) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hff);
+        end
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 2
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 2, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hff00) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hff00);
+        end
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 4
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 4, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hff0000) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hff0000);
+        end
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 8
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 8, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hff000000) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hff000000);
+        end
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 3
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 3, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hffff) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hffff);
+        end
+
+        //reset all registers
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 15, 0);
+            avalon_read(idx, tmp);
+            assert(tmp == 0) else $error("register at address %d has the wrong value at reset", idx); 
+        end
+
+        //write 0xFFFFFFFF to the 4 registers with a byte enable of 12 (0xC)
+        for(idx = 3; idx < 7; idx = idx + 1) begin
+            avalon_write(idx, 12, 'hffffffff);
+            avalon_read(idx, tmp);
+            assert(tmp == 'hffff0000) else $error("register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hffff0000);
+        end
+
+        //ajouter des combinaisons de mots?? TODO
+
+        // COUNTER TESTING ====================================================================================================  
+        $display("Testing counter");
+
+        avalon_write(2, 15, 0x1);
+        avalon_read(1, tmp);
+        assert(tmp == 0) else $error("counter value should be 0 after reset");
+
+        for(idx = 1; idx < 1000000; idx = idx + 100) begin
+            avalon_write(2, 15, 0x2)
+            avalon_read(1, tmp);
+            assert(tmp == idx) else $error("counter value is %d instead of %d", tmp, idx);
+        end
+        
+        avalon_write(2, 15, 0x1);
+        avalon_read(1, tmp);
+        assert(tmp == 0) else $error("counter value should be 0 after reset");
+
+        // testing some bad inputs on register at address 2
+        for(idx = 0; idx < 1000; idx = idx + 5) begin
+            avalon_write(2, 15, idx);
+            avalon_read(1, tmp);
+            assert(tmp == 0) else $error("counter value should not have changed with a bad value on controle register");
+        end
 
         $finish;
     end
