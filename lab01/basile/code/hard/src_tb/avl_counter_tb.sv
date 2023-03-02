@@ -61,6 +61,24 @@ module avl_counter_tb#(int TESTCASE=0);
         end
     endtask
 
+    assert_readdatavalid_waitrequest : assert property
+    (
+        @(posedge avl_clk)
+        avl_waitrequest |-> !avl_readdatavalid
+    );
+
+    assert_read_signals : assert property 
+    (
+        @(posedge avl_clk)
+        avl_readdatavalid |-> !avl_waitrequest
+    );
+
+    assert_write_readdata_valid : assert property
+    (
+        @(posedge avl_clk)
+        avl_write |-> !avl_readdatavalid
+    );
+
     // avalon read function 
     task avalon_read(input int addr, output int data);
         begin
@@ -72,13 +90,13 @@ module avl_counter_tb#(int TESTCASE=0);
             wait_event(avl_waitrequest, 1, 15);
             assert(avl_waitrequest == 1) else $error("waitrequest didnt rise on read");
 
-            wait_event(avl_readdatavalid, 1, 15);
-            assert(avl_readdatavalid == 1) else $error("readdatavalid didnt rise on read");
-
-            data = avl_readdata;
-
             wait_event(avl_waitrequest, 0, 15);
             assert(avl_waitrequest == 0) else $error("waitrequest didnt fall on read");
+
+            wait_event(avl_readdatavalid, 1, 15);
+            assert(avl_readdatavalid == 1) else $error("readdatavalid didnt rise on read");
+            
+            data = avl_readdata;
 
             avl_read = 0;
 
