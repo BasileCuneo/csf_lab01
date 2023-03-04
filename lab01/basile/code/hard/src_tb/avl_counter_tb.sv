@@ -1,38 +1,38 @@
 module avl_counter_tb#(int TESTCASE=0);
 
-    logic avl_clk = 0;
-    logic avl_reset;
-    logic [2:0] avl_address;
-    logic avl_read;
-    logic avl_readdatavalid;
-    logic [31:0] avl_readdata;
-    logic avl_write;
-    logic [31:0] avl_writedata;
-    logic [3:0] avl_byteenable;
-    logic avl_waitrequest;
+    logic avl_clk_i = 0;
+    logic avl_reset_i;
+    logic [2:0] avl_address_i;
+    logic avl_read_i;
+    logic avl_readdatavalid_o;
+    logic [31:0] avl_readdata_o;
+    logic avl_write_i;
+    logic [31:0] avl_writedata_i;
+    logic [3:0] avl_byteenable_i;
+    logic avl_waitrequest_o;
 
     avl_counter#(0) avl(
-        .avl_clk(avl_clk),
-        .avl_reset(avl_reset),
-        .avl_address(avl_address),
-        .avl_read(avl_read),
-        .avl_readdatavalid(avl_readdatavalid),
-        .avl_readdata(avl_readdata),
-        .avl_write(avl_write),
-        .avl_writedata(avl_writedata),
-        .avl_byteenable(avl_byteenable),
-        .avl_waitrequest(avl_waitrequest)
+        .avl_clk_i(avl_clk_i),
+        .avl_reset_i(avl_reset_i),
+        .avl_address_i(avl_address_i),
+        .avl_read_i(avl_read_i),
+        .avl_readdatavalid_o(avl_readdatavalid_o),
+        .avl_readdata_o(avl_readdata_o),
+        .avl_write_i(avl_write_i),
+        .avl_writedata_i(avl_writedata_i),
+        .avl_byteenable_i(avl_byteenable_i),
+        .avl_waitrequest_o(avl_waitrequest_o)
     );
 
     // clock generator
-    always #5 avl_clk = ~avl_clk;
+    always #5 avl_clk_i = ~avl_clk_i;
 
     // function to wait for an event
     task wait_event(input logic signal, input logic value, input int timeout);
         begin
             int i;
             for (i = 0; i < timeout; i = i + 1) begin
-                @(posedge avl_clk);
+                @(posedge avl_clk_i);
                 if (signal == value) begin
                     break;
                 end
@@ -43,67 +43,61 @@ module avl_counter_tb#(int TESTCASE=0);
     // avalon write function
     task avalon_write(input int addr, input int byteenable, input int data);
         begin
-            avl_address = addr;
-            avl_byteenable = byteenable;
-            avl_read = 0;
-            avl_writedata = data;
-            avl_write = 1;
+            avl_address_i = addr;
+            avl_byteenable_i = byteenable;
+            avl_read_i = 0;
+            avl_writedata_i = data;
+            avl_write_i = 1;
 
-            wait_event(avl_waitrequest, 1, 15);
-            assert(avl_waitrequest == 1) else $error("waitrequest didnt rise on write");
+            wait_event(avl_waitrequest_o, 1, 15);
+            assert(avl_waitrequest_o == 1) else $error("waitrequest didnt rise on write");
 
-            wait_event(avl_waitrequest, 0, 15);
-            assert(avl_waitrequest == 0) else $error("waitrequest didnt fall on write");
+            wait_event(avl_waitrequest_o, 0, 15);
+            assert(avl_waitrequest_o == 0) else $error("waitrequest didnt fall on write");
             
-            avl_write = 0;
+            avl_write_i = 0;
 
-            @(posedge avl_clk);
+            @(posedge avl_clk_i);
         end
     endtask
 
     assert_readdatavalid_waitrequest : assert property
     (
-        @(posedge avl_clk)
-        avl_waitrequest |-> !avl_readdatavalid
-    );
-
-    assert_read_signals : assert property 
-    (
-        @(posedge avl_clk)
-        avl_readdatavalid |-> !avl_waitrequest
+        @(posedge avl_clk_i)
+        avl_waitrequest_o |-> !avl_readdatavalid_o
     );
 
     assert_write_readdata_valid : assert property
     (
-        @(posedge avl_clk)
-        avl_write |-> !avl_readdatavalid
+        @(posedge avl_clk_i)
+        avl_write_i |-> !avl_readdatavalid_o
     );
 
     // avalon read function 
     task avalon_read(input int addr, output int data);
         begin
-            avl_address = addr;
-            avl_byteenable = 15;
-            avl_read = 1;
-            avl_write = 0;
+            avl_address_i = addr;
+            avl_byteenable_i = 15;
+            avl_read_i = 1;
+            avl_write_i = 0;
 
-            wait_event(avl_waitrequest, 1, 15);
-            assert(avl_waitrequest == 1) else $error("waitrequest didnt rise on read");
+            wait_event(avl_waitrequest_o, 1, 15);
+            assert(avl_waitrequest_o == 1) else $error("waitrequest didnt rise on read");
 
-            wait_event(avl_waitrequest, 0, 15);
-            assert(avl_waitrequest == 0) else $error("waitrequest didnt fall on read");
+            wait_event(avl_waitrequest_o, 0, 15);
+            assert(avl_waitrequest_o == 0) else $error("waitrequest didnt fall on read");
 
-            wait_event(avl_readdatavalid, 1, 15);
-            assert(avl_readdatavalid == 1) else $error("readdatavalid didnt rise on read");
+            wait_event(avl_readdatavalid_o, 1, 15);
+            assert(avl_readdatavalid_o == 1) else $error("readdatavalid didnt rise on read");
             
-            data = avl_readdata;
+            data = avl_readdata_o;
 
-            avl_read = 0;
+            avl_read_i = 0;
 
-            wait_event(avl_readdatavalid, 0, 15);
-            assert(avl_readdatavalid == 0) else $error("readdatavalid didnt fall on read");
+            wait_event(avl_readdatavalid_o, 0, 15);
+            assert(avl_readdatavalid_o == 0) else $error("readdatavalid didnt fall on read");
 
-            @(posedge avl_clk);
+            @(posedge avl_clk_i);
         end
     endtask
 
@@ -112,11 +106,11 @@ module avl_counter_tb#(int TESTCASE=0);
         longint unsigned idx;
         $display("avl_counter_tb started, now reseting");
 
-        @(posedge avl_clk);
-        avl_reset = 1;
-        @(posedge avl_clk);
-        avl_reset = 0;
-        @(posedge avl_clk);
+        @(posedge avl_clk_i);
+        avl_reset_i = 1;
+        @(posedge avl_clk_i);
+        avl_reset_i = 0;
+        @(posedge avl_clk_i);
 
         $display("reset done, now testing");
         $display("testing read on constant value at address 0");
