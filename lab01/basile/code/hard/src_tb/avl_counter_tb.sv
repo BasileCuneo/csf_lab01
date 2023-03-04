@@ -32,10 +32,10 @@ module avl_counter_tb#(int TESTCASE=0);
         begin
             int i;
             for (i = 0; i < timeout; i = i + 1) begin
-                @(posedge avl_clk_i);
                 if (signal == value) begin
                     break;
                 end
+                @(posedge avl_clk_i);
             end
         end
     endtask
