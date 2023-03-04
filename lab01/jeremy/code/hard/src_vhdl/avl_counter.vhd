@@ -61,6 +61,7 @@ architecture behave of avl_counter is
     signal avl_en_reg3_s      : std_logic;
     signal avl_en_reg4_s      : std_logic;
     signal avl_ctrl_cpt_s     : std_logic;
+    signal avl_ctrl_cpt_old_s : std_logic;
     
     signal avl_write_reg_s    : std_logic;
     signal avl_read_reg_s     : std_logic;
@@ -83,75 +84,39 @@ architecture behave of avl_counter is
 
 begin
 
-process (avl_clk_i, avl_reset_i) begin --masquage des entrées
-    if(avl_reset_i = '1') then
-        avl_data_masked_s <= (others => '0');
-        
-    elsif(rising_edge(avl_clk_i)) then
-        if(avl_byteenable_i(0) = '1') then
-            avl_data_masked_s(7 downto 0) <= avl_writedata_i(7 downto 0);
-        else
-            avl_data_masked_s(7 downto 0) <= avl_old_data_s(7 downto 0);
-        end if;
-        
-        if(avl_byteenable_i(1) = '1') then
-            avl_data_masked_s(15 downto 8) <= avl_writedata_i(15 downto 8);
-        else
-            avl_data_masked_s(15 downto 8) <= avl_old_data_s(15 downto 8);
-        end if;
-        
-        if(avl_byteenable_i(2) = '1') then
-            avl_data_masked_s(23 downto 16) <= avl_writedata_i(23 downto 16);
-        else
-            avl_data_masked_s(23 downto 16) <= avl_old_data_s(23 downto 16);
-        end if;
-        
-        if(avl_byteenable_i(3) = '1') then
-            avl_data_masked_s(31 downto 24) <= avl_writedata_i(31 downto 24);
-        else
-            avl_data_masked_s(31 downto 24) <= avl_old_data_s(31 downto 24);
-        end if;
-    end if;
-end process;
+avl_data_masked_s(7 downto 0) <= avl_writedata_i(7 downto 0) when avl_byteenable_i(0) = '1' else avl_old_data_s(7 downto 0);
+avl_data_masked_s(15 downto 8) <= avl_writedata_i(15 downto 8) when avl_byteenable_i(1) = '1' else avl_old_data_s(15 downto 8);
+avl_data_masked_s(23 downto 16) <= avl_writedata_i(23 downto 16) when avl_byteenable_i(2) = '1' else avl_old_data_s(23 downto 16);
+avl_data_masked_s(31 downto 24) <= avl_writedata_i(31 downto 24) when avl_byteenable_i(3) = '1' else avl_old_data_s(31 downto 24);
 
 process (avl_clk_i, avl_reset_i) begin 
     if(avl_reset_i = '1') then
         state_s <= 0;
-        avl_readdatavalid_s <= '0';
-        avl_waitrequest_s <= '0';
         
     elsif(rising_edge(avl_clk_i)) then
-        avl_readdatavalid_s <= '0';
-        avl_waitrequest_s <= '0';
-        
         case state_s is
             when 0 =>
                 if(avl_read_i = '1') then
                     state_s <= 1;
                 end if;
                 if(avl_write_i = '1') then
-                    state_s <= 3;
+                    state_s <= 2;
                 end if;
             when 1 => 
-                avl_waitrequest_s <= '1';
-                state_s <= 2;
-            when 2 =>
-                avl_readdatavalid_s <= '1';
                 if(avl_read_i = '0') then
                     state_s <= 0;
                 end if;
-            when 3 => 
-                avl_waitrequest_s <= '1';
-                state_s <= 4;
-            when 4 =>
+            when 2 =>
                 if(avl_write_i = '0') then
                     state_s <= 0;
                 end if;
             when others => null;
         end case;
     end if;
-    
 end process;
+
+avl_waitrequest_s <= '1' when state_s = 0 and (avl_read_i = '1' or avl_write_i = '1') else '0';
+avl_readdatavalid_s <= '1' when (state_s = 1 and avl_read_i = '1') else '0';
 
 process (avl_clk_i, avl_reset_i) begin --décodage read
     if(avl_reset_i = '1') then
@@ -249,6 +214,14 @@ process (avl_clk_i, avl_reset_i) begin --registres reg1 à 4
     end if;
 end process;
 
+process (avl_clk_i, avl_reset_i) begin
+    if(avl_reset_i = '1') then
+        avl_ctrl_cpt_old_s <= '0';
+    elsif(rising_edge(avl_clk_i)) then
+        avl_ctrl_cpt_old_s <= avl_ctrl_cpt_s;
+    end if;
+end process;
+
 process (avl_clk_i, avl_reset_i) begin --compteur
     if(avl_reset_i = '1') then
         avl_cpt_pres_s <= (others => '0');
@@ -259,7 +232,9 @@ process (avl_clk_i, avl_reset_i) begin --compteur
                 when 1 =>
                     avl_cpt_pres_s <= (others => '0');
                 when 2 =>
-                    avl_cpt_pres_s <= std_logic_vector(unsigned(avl_cpt_pres_s) +1);
+                    if(avl_ctrl_cpt_old_s = '0') then --edge detection
+                        avl_cpt_pres_s <= std_logic_vector(unsigned(avl_cpt_pres_s) +1);
+                    end if;
                 when others =>
                     null;
             end case;  
@@ -267,9 +242,8 @@ process (avl_clk_i, avl_reset_i) begin --compteur
     end if;
 end process;
 
-
 avl_readdatavalid_o <= avl_readdatavalid_s;
-avl_readdata_o <= avl_readdata_s;
 avl_waitrequest_o <= avl_waitrequest_s;
+avl_readdata_o <= avl_readdata_s;
 
 end behave;
