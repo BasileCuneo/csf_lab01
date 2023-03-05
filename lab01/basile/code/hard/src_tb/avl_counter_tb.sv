@@ -58,6 +58,7 @@ module avl_counter_tb#(int TESTCASE=0);
             avl_write_i = 0;
 
             @(posedge avl_clk_i);
+            
         end
     endtask
 
@@ -74,7 +75,7 @@ module avl_counter_tb#(int TESTCASE=0);
     );
 
     // avalon read function 
-    task avalon_read(input int addr, output int data);
+    task avalon_read(input int addr, output int unsigned data);
         begin
             avl_address_i = addr;
             avl_byteenable_i = 15;
@@ -92,12 +93,15 @@ module avl_counter_tb#(int TESTCASE=0);
             
             data = avl_readdata_o;
 
+            @(posedge avl_clk_i);
+
             avl_read_i = 0;
 
             wait_event(avl_readdatavalid_o, 0, 15);
             assert(avl_readdatavalid_o == 0) else $error("readdatavalid didnt fall on read");
 
             @(posedge avl_clk_i);
+            
         end
     endtask
 
@@ -390,8 +394,6 @@ module avl_counter_tb#(int TESTCASE=0);
             avalon_read(idx, tmp);
             assert(tmp === 'hffff0000) else $error("BE: register at address %d has the wrong value which is %d instead of %d", idx, tmp, 'hffff0000);
         end
-
-        //ajouter des combinaisons de mots?? TODO
 
         // COUNTER TESTING ====================================================================================================  
         $display("Testing counter");

@@ -75,7 +75,6 @@ architecture behave of avl_counter is
     signal avl_reg3_pres_s    : std_logic_vector(31 downto 0);
     signal avl_reg4_pres_s    : std_logic_vector(31 downto 0);
     signal avl_cpt_pres_s     : std_logic_vector(31 downto 0);
-    signal avl_old_data_s     : std_logic_vector(31 downto 0);
     
     signal state_s            : integer;
     
@@ -84,10 +83,10 @@ architecture behave of avl_counter is
 
 begin
 
-avl_data_masked_s(7 downto 0) <= avl_writedata_i(7 downto 0) when avl_byteenable_i(0) = '1' else avl_old_data_s(7 downto 0);
-avl_data_masked_s(15 downto 8) <= avl_writedata_i(15 downto 8) when avl_byteenable_i(1) = '1' else avl_old_data_s(15 downto 8);
-avl_data_masked_s(23 downto 16) <= avl_writedata_i(23 downto 16) when avl_byteenable_i(2) = '1' else avl_old_data_s(23 downto 16);
-avl_data_masked_s(31 downto 24) <= avl_writedata_i(31 downto 24) when avl_byteenable_i(3) = '1' else avl_old_data_s(31 downto 24);
+avl_data_masked_s(7 downto 0) <= avl_writedata_i(7 downto 0) when avl_byteenable_i(0) = '1' else avl_readdata_s(7 downto 0);
+avl_data_masked_s(15 downto 8) <= avl_writedata_i(15 downto 8) when avl_byteenable_i(1) = '1' else avl_readdata_s(15 downto 8);
+avl_data_masked_s(23 downto 16) <= avl_writedata_i(23 downto 16) when avl_byteenable_i(2) = '1' else avl_readdata_s(23 downto 16);
+avl_data_masked_s(31 downto 24) <= avl_writedata_i(31 downto 24) when avl_byteenable_i(3) = '1' else avl_readdata_s(31 downto 24);
 
 process (avl_clk_i, avl_reset_i) begin 
     if(avl_reset_i = '1') then
@@ -120,42 +119,31 @@ avl_readdatavalid_s <= '1' when (state_s = 1 and avl_read_i = '1') else '0';
 
 process (avl_clk_i, avl_reset_i) begin --décodage read
     if(avl_reset_i = '1') then
-        avl_old_data_s <= (others => '0');
+        avl_readdata_s <= (others => '0');
         
     elsif(rising_edge(avl_clk_i)) then
         if(avl_read_i = '1') then
             case to_integer(unsigned(avl_address_i)) is
                 when 0 => 
-                    avl_old_data_s <= AVL_CSTE;
+                    avl_readdata_s <= AVL_CSTE;
                 when 1 =>
-                    avl_old_data_s <= avl_cpt_pres_s;
+                    avl_readdata_s <= avl_cpt_pres_s;
                 when 2 =>
                     null;
                 when 3 =>
-                    avl_old_data_s <= avl_reg1_pres_s;
+                    avl_readdata_s <= avl_reg1_pres_s;
                 when 4 =>
-                    avl_old_data_s <= avl_reg2_pres_s;
+                    avl_readdata_s <= avl_reg2_pres_s;
                 when 5 =>
-                    avl_old_data_s <= avl_reg3_pres_s;
+                    avl_readdata_s <= avl_reg3_pres_s;
                 when 6 =>
-                    avl_old_data_s <= avl_reg4_pres_s;
+                    avl_readdata_s <= avl_reg4_pres_s;
                 when others =>
                     null;
             end case;
         end if;
     end if;
         
-end process;
-
-process (avl_clk_i, avl_reset_i) begin --old_data to readdata 
-    if(avl_reset_i = '1') then
-        avl_readdata_s <= (others => '0');
-        
-    elsif(rising_edge(avl_clk_i)) then
-        if(avl_readdatavalid_s = '1') then
-            avl_readdata_s <= avl_old_data_s;
-        end if;
-    end if;
 end process;
 
 process (avl_clk_i, avl_reset_i) begin --décodage write 
