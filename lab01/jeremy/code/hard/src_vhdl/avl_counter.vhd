@@ -37,16 +37,16 @@ entity avl_counter is
     );
     port(
         -- Avalon bus
-        avl_clk_i             : in  std_logic;
-        avl_reset_i           : in  std_logic;
-        avl_address_i         : in  std_logic_vector(2 downto 0);
-        avl_write_i           : in  std_logic;
-        avl_writedata_i       : in  std_logic_vector(31 downto 0);
-        avl_read_i            : in  std_logic;
-        avl_readdatavalid_o   : out std_logic;
-        avl_readdata_o        : out std_logic_vector(31 downto 0);
-        avl_byteenable_i      : in  std_logic_vector(3 downto 0);
-        avl_waitrequest_o     : out std_logic
+        avl_clk             : in  std_logic;
+        avl_reset           : in  std_logic;
+        avl_address         : in  std_logic_vector(2 downto 0);
+        avl_write           : in  std_logic;
+        avl_writedata       : in  std_logic_vector(31 downto 0);
+        avl_read            : in  std_logic;
+        avl_readdatavalid   : out std_logic;
+        avl_readdata        : out std_logic_vector(31 downto 0);
+        avl_byteenable      : in  std_logic_vector(3 downto 0);
+        avl_waitrequest     : out std_logic
   );
 end avl_counter;
 
@@ -83,30 +83,31 @@ architecture behave of avl_counter is
 
 begin
 
-avl_data_masked_s(7 downto 0) <= avl_writedata_i(7 downto 0) when avl_byteenable_i(0) = '1' else avl_readdata_s(7 downto 0);
-avl_data_masked_s(15 downto 8) <= avl_writedata_i(15 downto 8) when avl_byteenable_i(1) = '1' else avl_readdata_s(15 downto 8);
-avl_data_masked_s(23 downto 16) <= avl_writedata_i(23 downto 16) when avl_byteenable_i(2) = '1' else avl_readdata_s(23 downto 16);
-avl_data_masked_s(31 downto 24) <= avl_writedata_i(31 downto 24) when avl_byteenable_i(3) = '1' else avl_readdata_s(31 downto 24);
+avl_data_masked_s(7 downto 0) <= avl_writedata(7 downto 0) when avl_byteenable(0) = '1' else avl_readdata_s(7 downto 0);
+avl_data_masked_s(15 downto 8) <= avl_writedata(15 downto 8) when avl_byteenable(1) = '1' else avl_readdata_s(15 downto 8);
+avl_data_masked_s(23 downto 16) <= avl_writedata(23 downto 16) when avl_byteenable(2) = '1' else avl_readdata_s(23 downto 16);
+avl_data_masked_s(31 downto 24) <= avl_writedata(31 downto 24) when avl_byteenable(3) = '1' else avl_readdata_s(31 downto 24);
 
-process (avl_clk_i, avl_reset_i) begin 
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin 
+    if(avl_reset = '1') then
         state_s <= 0;
         
-    elsif(rising_edge(avl_clk_i)) then
+    -- MSS pour waitrequest et readdatavalid 
+    elsif(rising_edge(avl_clk)) then
         case state_s is
             when 0 =>
-                if(avl_read_i = '1') then
+                if(avl_read = '1') then
                     state_s <= 1;
                 end if;
-                if(avl_write_i = '1') then
+                if(avl_write = '1') then
                     state_s <= 2;
                 end if;
             when 1 => 
-                if(avl_read_i = '0') then
+                if(avl_read = '0') then
                     state_s <= 0;
                 end if;
             when 2 =>
-                if(avl_write_i = '0') then
+                if(avl_write = '0') then
                     state_s <= 0;
                 end if;
             when others => null;
@@ -114,16 +115,16 @@ process (avl_clk_i, avl_reset_i) begin
     end if;
 end process;
 
-avl_waitrequest_s <= '1' when state_s = 0 and (avl_read_i = '1' or avl_write_i = '1') else '0';
-avl_readdatavalid_s <= '1' when (state_s = 1 and avl_read_i = '1') else '0';
+avl_waitrequest_s <= '1' when state_s = 0 and (avl_read = '1' or avl_write = '1') else '0';
+avl_readdatavalid_s <= '1' when (state_s = 1 and avl_read = '1') else '0';
 
-process (avl_clk_i, avl_reset_i) begin --décodage read
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin --décodage read
+    if(avl_reset = '1') then
         avl_readdata_s <= (others => '0');
         
-    elsif(rising_edge(avl_clk_i)) then
-        if(avl_read_i = '1') then
-            case to_integer(unsigned(avl_address_i)) is
+    elsif(rising_edge(avl_clk)) then
+        if(avl_read = '1') then
+            case to_integer(unsigned(avl_address)) is
                 when 0 => 
                     avl_readdata_s <= AVL_CSTE;
                 when 1 =>
@@ -146,23 +147,24 @@ process (avl_clk_i, avl_reset_i) begin --décodage read
         
 end process;
 
-process (avl_clk_i, avl_reset_i) begin --décodage write 
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin --décodage write 
+    if(avl_reset = '1') then
         avl_ctrl_cpt_s <= '0';
         avl_en_reg1_s <= '0';
         avl_en_reg2_s <= '0';
         avl_en_reg3_s <= '0';
         avl_en_reg4_s <= '0';
         
-    elsif(rising_edge(avl_clk_i)) then
+    elsif(rising_edge(avl_clk)) then
+        --valeur par défaut
         avl_ctrl_cpt_s <= '0';
         avl_en_reg1_s <= '0';
         avl_en_reg2_s <= '0';
         avl_en_reg3_s <= '0';
         avl_en_reg4_s <= '0';
         
-        if(avl_write_i = '1') then
-            case to_integer(unsigned(avl_address_i)) is
+        if(avl_write = '1') then
+            case to_integer(unsigned(avl_address)) is --registres enable
                 when 0 to 1 => 
                     null;
                 when 2 =>
@@ -182,14 +184,14 @@ process (avl_clk_i, avl_reset_i) begin --décodage write
     end if;
 end process;
 
-process (avl_clk_i, avl_reset_i) begin --registres reg1 à 4
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin --registres reg1 à 4
+    if(avl_reset = '1') then
         avl_reg1_pres_s <= (others => '0');
         avl_reg2_pres_s <= (others => '0');
         avl_reg3_pres_s <= (others => '0');
         avl_reg4_pres_s <= (others => '0');
         
-    elsif(rising_edge(avl_clk_i)) then
+    elsif(rising_edge(avl_clk)) then --mise à jour des registres
         if(avl_en_reg1_s = '1') then
             avl_reg1_pres_s <= avl_data_masked_s;
         elsif(avl_en_reg2_s = '1') then
@@ -202,19 +204,19 @@ process (avl_clk_i, avl_reset_i) begin --registres reg1 à 4
     end if;
 end process;
 
-process (avl_clk_i, avl_reset_i) begin
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin
+    if(avl_reset = '1') then
         avl_ctrl_cpt_old_s <= '0';
-    elsif(rising_edge(avl_clk_i)) then
+    elsif(rising_edge(avl_clk)) then
         avl_ctrl_cpt_old_s <= avl_ctrl_cpt_s;
     end if;
 end process;
 
-process (avl_clk_i, avl_reset_i) begin --compteur
-    if(avl_reset_i = '1') then
+process (avl_clk, avl_reset) begin --compteur
+    if(avl_reset = '1') then
         avl_cpt_pres_s <= (others => '0');
         
-    elsif(rising_edge(avl_clk_i)) then
+    elsif(rising_edge(avl_clk)) then
         if(avl_ctrl_cpt_s = '1') then
             case to_integer(unsigned(avl_data_masked_s)) is
                 when 1 =>
@@ -230,8 +232,9 @@ process (avl_clk_i, avl_reset_i) begin --compteur
     end if;
 end process;
 
-avl_readdatavalid_o <= avl_readdatavalid_s;
-avl_waitrequest_o <= avl_waitrequest_s;
-avl_readdata_o <= avl_readdata_s;
+--affectation des signaux aux sorties
+avl_readdatavalid <= avl_readdatavalid_s;
+avl_waitrequest <= avl_waitrequest_s;
+avl_readdata <= avl_readdata_s;
 
 end behave;

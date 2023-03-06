@@ -73,8 +73,19 @@ logic_write         <= hps_write;
 logic_writedata     <= hps_writedata;
 logic_read          <= hps_read;
 logic_byteenable    <= hps_byteenable;
-hps_readdatavalid   <= logic_readdatavalid;
-hps_readdata        <= logic_readdata;
+--hps_readdatavalid   <= logic_readdatavalid;
+--hps_readdata        <= logic_readdata;
 hps_waitrequest     <= logic_waitrequest;
 
-end rtl; 
+delay_proc : process(hps_clk, hps_reset)
+begin
+  if hps_reset = '1' then
+    hps_readdatavalid <= '0';
+    hps_readdata      <= (others => '0');
+  elsif rising_edge(hps_clk) then
+    hps_readdatavalid   <= logic_readdatavalid;
+    hps_readdata        <= logic_readdata;
+  end if;
+end process;
+
+end rtl;
