@@ -58,21 +58,21 @@ Cette seconde étape couvre la description VHDL du composant.
 Dans un premier temps, Jeremy a retranscrit le schéma en code vhdl. La liste ci-dessous décrit les décisions prises pour le code, en reprenant la numérotation des blocs du schéma:
 
 1. Pas besoin d'être synchrone, `when else` suffisant.
-2. *Process* avec détection `reset` et flanc montant `clk`. Cela permet de donner une valeur par défaut aux signaux et de les changer uniquement au passage d'un flanc montant, et ce uniquement avec `write = '1'`.
-3. *Process* avec détection `reset` et flanc montant `clk`. _readdata_ se met à jour de manière synchrone et seulement si  `read = '1'`. 
+2. *Process* avec détection `avl_reset` et flanc montant `avl_clk`. Cela permet de donner une valeur par défaut aux signaux et de les changer uniquement au passage d'un flanc montant, et ce uniquement avec `avl_write = '1'`.
+3. *Process* avec détection `avl_reset` et flanc montant `avl_clk`. _readdata_ se met à jour de manière synchrone et seulement si  `avl_read = '1'`. 
 4. La MSS n'a pour sortie que ses bits d'états, cela permet de mettre en place une gestion de type MSS de Mealy pour les signaux  _readdatavalid_ et _waitrequest_.
-5. *Process* avec détection `reset` et flanc montant `clk`.  Le registre du compteur est mis à jour avec sa nouvelle valeur qui est soit remise à '0' soit incrémentée (pour cela, description de mux).
-6. *Process* avec détection `reset` et flanc montant `clk`. Les 4 registres sont séparés selon le signal d'enable et, le cas échéant, sont mis à jour avec les valeurs d'entrées. 
+5. *Process* avec détection `avl_reset` et flanc montant `avl_clk`.  Le registre du compteur est mis à jour avec sa nouvelle valeur qui est soit remise à '0' soit incrémentée (pour cela, description de mux).
+6. *Process* avec détection `avl_reset` et flanc montant `avl_clk`. Les 4 registres sont séparés selon le signal d'enable et, le cas échéant, sont mis à jour avec les valeurs d'entrées. 
 
 #### Problèmes rencontrés
 
 Retard sur les signaux _readdatavalid_ et _waitrequest_ :
 
-Lors de l'exécution de celui-ci à travers du testbench, il se trouve que les sigaux de sortie _readdatavalid_ et _waitrequest_ se déclanchent avec une période de retard. Le code initial présentait une détection des flancs montants sur les signaux `write` et `read` avec une logique combinatoire en aval. Cette méthode qui créait un retard a été remplacée par une MSS qui corrige ces erreurs.
+Lors de l'exécution de celui-ci à travers du testbench, il se trouve que les sigaux de sortie _readdatavalid_ et _waitrequest_ se déclanchent avec une période de retard. Le code initial présentait une détection des flancs montants sur les signaux `avl_write` et `avl_read` avec une logique combinatoire en aval. Cette méthode qui créait un retard a été remplacée par une MSS qui corrige ces erreurs.
 
 Compteur incrémenté continuellement:
 
-Dans la première version, le compteur s'incrémentait continuellement tant que la valeur de `0x02` était écrite dans son registre de contrôle et que le signal write restait à `1`. Comme nous voulions effectuer une seule incrémentation, Jeremy a ajouté une détection de flanc sur le signal enable du compteur. A présent, une seule incrémentation a lieu. 
+Dans la première version, le compteur s'incrémentait continuellement tant que la valeur de `0x02` était écrite dans son registre de contrôle et que le signal `avl_write` restait à `1`. Comme nous voulions effectuer une seule incrémentation, Jeremy a ajouté une détection de flanc sur le signal enable du compteur. A présent, une seule incrémentation a lieu. 
 
 ### Description VHDL de Kristina
 
