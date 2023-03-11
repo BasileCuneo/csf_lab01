@@ -53,6 +53,8 @@
 
 #define NB_INC      10000
 
+#define CONST_ID    0xD0D0C5F0
+
 // Testcase prototypes
 void test_id(void);
 void test_counter(void);
@@ -123,7 +125,10 @@ void test_id(void)
     printf("\n\n------ ID test ------\n");
 
     uint32_t usr_id = *((uint32_t*)(ioctrls) + OFT_ID);
-    printf("Should be $YOUR_CONSTANT$ : %x\n", usr_id);
+
+    if(usr_id != CONST_ID){
+        printf("Error: Constant ID is not correct. Expected %x, got %x\n", CONST_ID, usr_id);
+    }
 }
 
 // Test the counter
@@ -133,17 +138,38 @@ void test_counter(void)
     printf("\n\n------ Counter test ------\n");
 
     // reset counter
-    printf("Reseting counter\n");
     *((uint32_t*)(ioctrls) + OFT_CTRL) = CNT_RST;
     counter_val = *((uint32_t*)(ioctrls) + OFT_CNT);
-    printf("Counter value: %x\n", counter_val);
+    
+    if(counter_val != 0){
+        printf("Error: Counter reset failed. Expected 0, got %x\n", counter_val);
+    }
 
-    printf("Incrementing counter %d times\n", NB_INC);
+    //some increments
     for(int i = 1; i <= NB_INC; i++)
     {
         *((uint32_t*)(ioctrls) + OFT_CTRL) = CNT_INC;
         counter_val = *((uint32_t*)(ioctrls) + OFT_CNT);
-        printf("Counter value: %x\n", counter_val);
+        if(counter_val != i){
+            printf("Error: Counter value is not correct. Expected %d, got %x\n", i, counter_val);
+        }
+    }
+
+    //reset counter
+    *((uint32_t*)(ioctrls) + OFT_CTRL) = CNT_RST;
+    counter_val = *((uint32_t*)(ioctrls) + OFT_CNT);
+    
+    if(counter_val != 0){
+        printf("Error: Counter reset failed. Expected 0, got %x\n", counter_val);
+    }
+
+    //some bad value usage for control
+    for(int i = 0; i < 1000; i += 5){
+        *((uint32_t*)(ioctrls) + OFT_CTRL) = i;
+        counter_val = *((uint32_t*)(ioctrls) + OFT_CNT);
+        if(counter_val != 0){
+            printf("Error: Counter value should not have changed with a bad control. Expected 0, got %x\n", counter_val);
+        }
     }
 }
 
@@ -151,55 +177,330 @@ void test_counter(void)
 void test_byteenable(void)
 {
     uint32_t reg1_val = 0;
+    uint8_t offsets[4] = {OFT_REG1, OFT_REG2, OFT_REG3, OFT_REG4};
     printf("\n\n------ Byteenable test ------\n");
 
-    // reset register
-    printf("Reseting register 1\n");
-    *((uint32_t*)(ioctrls) + OFT_REG1) = 0;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
 
-    // byteenable = 0b0001
-    printf("Writing 0xCE with byteenable = 0b0001\n");
-    *((uint8_t*)(ioctrls) + OFT_REG1*4) = 0xCE;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // byte enable of 0b0001
+    for(int i = 0; i < 4; i++){
+        *((uint8_t)(ioctrls) + offsets[i]*4) = 0xFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFF){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFF, reg1_val, i + 1);
+        }
+    }
 
-    // byteenable = 0b0010
-    printf("Writing 0xFA with byteenable = 0b0010\n");
-    *((uint8_t*)(ioctrls) + OFT_REG1*4 + 1) = 0xFA;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
 
-    // byteenable = 0b0100
-    printf("Writing 0xFA with byteenable = 0b0100\n");
-    *((uint8_t*)(ioctrls) + OFT_REG1*4 + 2) = 0xCE;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // byte enable of 0b0010
+    for(int i = 0; i < 4; i++){
+        *((uint8_t)(ioctrls) + offsets[i]*4 + 1) = 0xFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFF00){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFF00, reg1_val, i + 1);
+        }
+    }
 
-    // byteenable = 0b1000
-    printf("Writing 0xFA with byteenable = 0b1000\n");
-    *((uint8_t*)(ioctrls) + OFT_REG1*4 + 3) = 0xFA;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
 
-    // byteenable = 0b0011
-    printf("Writing 0xCAFE with byteenable = 0b0011\n");
-    *((uint16_t*)(ioctrls) + OFT_REG1*2) = 0xCAFE;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // byte enable of 0b0100
+    for(int i = 0; i < 4; i++){
+        *((uint8_t)(ioctrls) + offsets[i]*4 + 2) = 0xFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFF0000){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFF0000, reg1_val, i + 1);
+        }
+    }
 
-    // byteenable = 0b1100
-    printf("Writing 0xCAFE with byteenable = 0b1100\n");
-    *((uint16_t*)(ioctrls) + OFT_REG1*2 + 1) = 0xCAFE;
-    reg1_val = *((uint32_t*)(ioctrls) + OFT_REG1);
-    printf("Register 1 value: %x\n", reg1_val);
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    // byte enable of 0b1000
+    for(int i = 0; i < 4; i++){
+        *((uint8_t)(ioctrls) + offsets[i]*4 + 3) = 0xFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFF000000){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFF000000, reg1_val, i + 1);
+        }
+    }
+
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    // byte enable of 0b0011
+    for(int i = 0; i < 4; i++){
+        *((uint16_t*)(ioctrls) + offsets[i]*2) = 0xFFFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFFFF){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFFFF, reg1_val, i + 1);
+        }
+    }
+
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    // byte enable of 0b1100
+    for(int i = 0; i < 4; i++){
+        *((uint16_t*)(ioctrls) + offsets[i]*2 + 1) = 0xFFFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFFFF0000){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFFFF0000, reg1_val, i + 1);
+        }
+    }
+
+    // reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    // byte enable of 0b1111
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0xFFFFFFFF;
+        reg1_val = *((uint32_t*)(ioctrls) + offsets[i]);
+        if(reg1_val != 0xFFFFFFFF){
+            printf("Error BE: Register value is not correct. Expected %x, got %x for register %d\n", 0xFFFFFFFF, reg1_val, i + 1);
+        }
+    }
 }
 
 // Test R/W registers
 void test_read_write(void)
 {
+    uint8_t offsets[4] = {OFT_REG1, OFT_REG2, OFT_REG3, OFT_REG4};
     printf("\n\n------ Read/Write test ------\n");
 
-    /* YOUR READ/WRITE TESTS*/
+    //reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    // some low values for reg1 and checking that there was no changes on other registers
+    for(int i = 0; i < 100; i++){
+        *((uint32_t*)(ioctrls) + offsets[0]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some low values for reg2 and checking that there was no changes on other registers
+    for(int i = 0; i < 100; i++){
+        *((uint32_t*)(ioctrls) + offsets[1]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[1]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some low values for reg3 and checking that there was no changes on other registers
+    for(int i = 0; i < 100; i++){
+        *((uint32_t*)(ioctrls) + offsets[2]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some low values for reg4 and checking that there was no changes on other registers
+    for(int i = 0; i < 100; i++){
+        *((uint32_t*)(ioctrls) + offsets[3]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 99){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[0]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    //some high values for reg1 and checking that there was no changes on other registers
+    for(uint64_t i = 0; i < 4294967195; i++){
+        *((uint32_t*)(ioctrls) + offsets[0]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != i){
+            printf("Error RW: Register value is not correct. Expected %ld, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some high values for reg2 and checking that there was no changes on other registers
+    for(uint64_t i = 0; i < 4294967195; i++){
+        *((uint32_t*)(ioctrls) + offsets[1]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != i){
+            printf("Error RW: Register value is not correct. Expected %ld, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[1]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some high values for reg3 and checking that there was no changes on other registers
+    for(uint64_t i = 0; i < 4294967195; i++){
+        *((uint32_t*)(ioctrls) + offsets[2]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != i){
+            printf("Error RW: Register value is not correct. Expected %ld, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some high values for reg4 and checking that there was no changes on other registers
+    for(uint64_t i = 0; i < 4294967195; i++){
+        *((uint32_t*)(ioctrls) + offsets[3]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 4294967194){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 4294967194, *((uint32_t*)(ioctrls) + offsets[0]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != i){
+            printf("Error RW: Register value is not correct. Expected %ld, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //reset registers
+    for(int i = 0; i < 4; i++){
+        *((uint32_t*)(ioctrls) + offsets[i]) = 0;
+    }
+
+    //some standard values for reg1 and checking that there was no changes on other registers
+    for(int i = 0; i < 1000000; i += 100){
+        *((uint32_t*)(ioctrls) + offsets[0]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[1]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 3. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some standard values for reg2 and checking that there was no changes on other registers
+    for(int i = 0; i < 1000000; i += 100){
+        *((uint32_t*)(ioctrls) + offsets[1]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[2]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 4. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some standard values for reg3 and checking that there was no changes on other registers
+    for(int i = 0; i < 1000000; i += 100){
+        *((uint32_t*)(ioctrls) + offsets[2]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != 0){
+            printf("Error RW: Register value should not have changed with a write at address 5. Expected %d, got %d for register %d\n", 0, *((uint32_t*)(ioctrls) + offsets[3]), 4);
+        }
+    }
+
+    //some standard values for reg4 and checking that there was no changes on other registers
+    for(int i = 0; i < 1000000; i += 100){
+        *((uint32_t*)(ioctrls) + offsets[3]) = i;
+        if(*((uint32_t*)(ioctrls) + offsets[0]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[1]), 1);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[1]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[0]), 2);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[2]) != 999900){
+            printf("Error RW: Register value should not have changed with a write at address 6. Expected %d, got %d for register %d\n", 999900, *((uint32_t*)(ioctrls) + offsets[0]), 3);
+        }
+        if(*((uint32_t*)(ioctrls) + offsets[3]) != i){
+            printf("Error RW: Register value is not correct. Expected %d, got %d for register %d\n", i, *((uint32_t*)(ioctrls) + offsets[0]), 4);
+        }
+    }
 }

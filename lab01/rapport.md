@@ -110,6 +110,8 @@ Pour finir, le compteur a pu être testé. Il a d'abord été remis à 0, puis i
 
 Le testbench se termine ensuite par un $finish.
 
+La difficulté principale pour la mise en place des tests a été la gestion des litéraux constants pour qu'ils soient traités comme des 64bits.
+
 ## Étape 4
 
 Dans cette étape, nous avons lancé la synthèses / placement / routage comme demandé, puis nous avons pu afficher les différentes vues à l'aide de Quartus.
