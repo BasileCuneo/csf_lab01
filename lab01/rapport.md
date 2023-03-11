@@ -138,14 +138,21 @@ Le résultat obtenu sur le terminal est le suivant:
 
 Basile s'est ensuite occupé de modifier le fichier C afin de réaliser les mêmes tests que dans le testbench. Voici le résultat obtenu dans le terminal au terme de ces tests: 
 
-![](./tests_c.png)
+![](./test_c.png)
 
-A noter que pour ces tests, en cas d'erreur un message est affiché, le fait de n'afficher que les différentes étapes en cours de test sans erreur atteste donc du bon fonctionnement de notre solution.
+A noter que pour ces tests, en cas d'erreur un message est affiché, le fait de n'afficher que les différentes étapes en cours de test sans erreur atteste donc du bon fonctionnement de notre solution. Le code modifié se trouve dans le répertoire de Basile.
 
 ## Conclusion 
 
+Ce travail nous a permis de mettre en commun des compétences acquises au fil de différents cursus de formation. Jeremy et Kristina ont été amenés à travailler sur une description VHDL de façon plus directe ou moins compliquée que ce qui avait été vu dans les cours précédents tandis que Basile a été amené à mettre en place, pour la première fois, un testbench de A à Z. 
 
+C'est un laboratoire qui a également demandé une bonne entre aide afin de pouvoir réaliser les différentes tâches, autant pour les différentes descriptions VHDL que pour l'utilisation de Github ou d'un terminal. Basile a par exemple mis en place un fichier markdown listant des commandes de bases pour l'utilisation des lignes de commandes, allant de simples manipulations de l'arborescence de fichiers aux commandes de base de git.
 
+Le fait de travailler sur différentes tâches en se concentrant sur les compétences de chacun a été très intéressant, en revanche, lors du traitement d'erreurs, déterminer si celle-ci venait du testbench ou de la description VHDL.
+
+Au terme de ce travail, nous pensons pouvoir affirmer avoir rempli le cahier des charges, les différentes tâches demandées ont correctement pu être implémentées et testées.
+
+Yverdon-les-Bains, le 13.03.2023:       Basile Cuneo, Jeremy Vonlanthen & Kristina Greco
 
 
 
