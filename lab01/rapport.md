@@ -1,7 +1,7 @@
 # CSF Lab01: Réalisation d'un bloc simple sur bus avalon, prise en main des outils de simulation, synthèse et placement-routage
 
 ## Introduction 
-Le but de ce laboratoire est la prise en main des outils de simulation et de synthèse, ainsi que la réalistion d'un composant relativemetn simple. Ce composant sur bus avalon doit également être vérifié. Une observation des résultats en synthpse et un test sur la carte sont aussi à effectuer.
+Le but de ce laboratoire est la prise en main des outils de simulation et de synthèse, ainsi que la réalistion d'un composant relativement simple. Ce composant sur bus avalon doit également être vérifié. Une observation des résultats en synthèse et un test sur la carte sont aussi à effectuer.
 
 Le fonctionnement des signaux de notre composant pour le bus avalon doit respecter le chronogramme suivant:
 
@@ -34,7 +34,7 @@ Voici également le graph d'état de la MSS:
 
 ![](./jeremy/schema/mss.png)
 
-Étant donné la complexité de ce laboratoire, Jeremy a décidé de ne pas implémenter de machine 'UC / UT' car celle-ci ne serait pas justifiée. Ma schématique est divisée en blocs selon la liste suivante :
+Étant donné la complexité de ce laboratoire, Jeremy a décidé de ne pas implémenter de machine 'UC / UT' car celle-ci ne serait pas justifiée. Sa schématique est divisée en blocs selon la liste suivante :
 
 1. Masquage de _writedata_ selon le _byteenable_
 2. Enable des registres en écriture
@@ -70,7 +70,7 @@ Retard sur les signaux _readdatavalid_ et _waitrequest_ :
 
 Lors de l'exécution de celui-ci à travers du testbench, il se trouve que les sigaux de sortie _readdatavalid_ et _waitrequest_ se déclanchent avec une période de retard. Le code initial présentait une détection des flancs montants sur les signaux `avl_write` et `avl_read` avec une logique combinatoire en aval. Cette méthode qui créait un retard a été remplacée par une MSS qui corrige ces erreurs.
 
-Compteur incrémenté continuellement:
+Compteur incrémenté continuellement :
 
 Dans la première version, le compteur s'incrémentait continuellement tant que la valeur de `0x02` était écrite dans son registre de contrôle et que le signal `avl_write` restait à `1`. Comme nous voulions effectuer une seule incrémentation, Jeremy a ajouté une détection de flanc sur le signal enable du compteur. A présent, une seule incrémentation a lieu. 
 
@@ -88,7 +88,7 @@ N'ayant jamais mis en place plus que les tests d'un testbench pendant le cours V
 
 Deux descriptions VHDL ayant été mises en place, le script se situe dans le dossier de Basile et permet, via un paramètre, d'aller chercher les sources VHDL dans le répertoire de Jeremy ou Kristina.
 
-Ce script se lance de la manière suivante (depuis un répertoire /basile/code/hard/sim): do ../scripts/sim.do jeremy|kristina 0 
+Ce script se lance de la manière suivante (depuis un répertoire /basile/code/hard/sim): `do ../scripts/sim.do jeremy|kristina 0`
 
 Le troisième paramètre (0) de la commande de lancement de script permet la sélection d'un testcase, le composant étant relativement simple à vérifier, cela a été mis en place dans le script, mais pas dans le testbench lui même, c'est surtout une fonctionnalité mise en place pour des travaux futurs.
 
