@@ -83,6 +83,7 @@ architecture behave of avl_counter is
 
 begin
 
+-- masquage des entrées selon byteenable
 avl_data_masked_s(7 downto 0) <= avl_writedata(7 downto 0) when avl_byteenable(0) = '1' else avl_readdata_s(7 downto 0);
 avl_data_masked_s(15 downto 8) <= avl_writedata(15 downto 8) when avl_byteenable(1) = '1' else avl_readdata_s(15 downto 8);
 avl_data_masked_s(23 downto 16) <= avl_writedata(23 downto 16) when avl_byteenable(2) = '1' else avl_readdata_s(23 downto 16);
