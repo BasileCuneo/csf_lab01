@@ -35,7 +35,7 @@ entity avl_counter is
 generic (
     -- configurable processing time
     PROC_TIME : integer range 0 to 15 := 0
-);                                                                   --pourquoi mettre un generique ici ?
+);
 port(
     avl_clk : in std_logic;
     avl_reset : in std_logic;
@@ -113,7 +113,6 @@ begin
     end if;
 end process;
 
-                                                                                -- Quel est l'avantage de faire plusieurs process ?
 
 --Gestion de readdata grace a l'adresse
 process(avl_reset, avl_clk)
@@ -162,7 +161,7 @@ begin
 
         if(avl_write = '1') then
             case avl_address is
-                when "000" => null;                                                 -- Pourrait on eviter de mettre les enable ?
+                when "000" => null;
                 when "001" => null;
                 when "010" => avl_control_cpt_s <= '1';
                 when "011" => avl_en_r1_s <= '1';  --activation du registre 1
@@ -200,8 +199,6 @@ begin
         end if;
     end if;
 end process;
-
---ok jusqu'ici
 
 
 -- Gestion de la partie controle du compteur
