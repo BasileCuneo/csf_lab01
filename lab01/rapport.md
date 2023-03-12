@@ -47,6 +47,20 @@ Cette décomposition est celle retenue après les modifications effectuées suit
 
 ### Schéma de Kristina
 
+Voici le schéma réalisé par Kristina:
+
+![](./kristina/schema.png)
+
+Voici le graph d'état de la MSS:
+
+![](./kristina/mss.png)
+
+1. Sur ce schéma, nous pouvons voir un multiplexeur et un décodeur ayant pour bits de sélection l’adresse. Celle-ci sélectionne les valeurs à lire depuis avl_write, ou à écrire dans readdata. 
+2. Le signal data_masked a été séparé en 4 parties (4 quarts), comme on peut le voir sur le schéma. Chacune des parties de data_masked sélectionne un quart des bits de readdata ou de writedata, ceci en fonction de byteenable. 
+3. La partie du milieu permet de gérer le compteur, grâce au signal de contrôle du compteur ainsi qu’au signal data_masked_s. 
+4. Les 2 parties du bas contenant la machine d’états sont nécessaires à déterminer les signaux waitrequest et readdatavalid. 
+5. La MSS a 3 états : un état d’écriture, un de lecture, et un état où il n’y a ni écriture ni lecture. Les signaux permettant de changer d’état sont avl_write et avl_read. Ce dernier état est l’état initial. 
+
 ## Étape 2
 
 Cette seconde étape couvre la description VHDL du composant.
@@ -75,6 +89,8 @@ Compteur incrémenté continuellement :
 Dans la première version, le compteur s'incrémentait continuellement tant que la valeur de `0x02` était écrite dans son registre de contrôle et que le signal `avl_write` restait à `1`. Comme nous voulions effectuer une seule incrémentation, Jeremy a ajouté une détection de flanc sur le signal enable du compteur. A présent, une seule incrémentation a lieu. 
 
 ### Description VHDL de Kristina
+
+Tout d’abord, les entrées et sorties du système sont définies. Au début de la description de l’architecture, les constantes et les signaux qui seront utilisés dans la suite du code sont déclarés. Puis le signal avl_data_masked est décrit grâce à de la logique combinatoire comme présenté sur le schéma ci-dessus. Il y a au total 6 process présents. Le premier permet de décrire la machine d’états. Les 3 états sont définis par des constantes. Le 2ème process permet de décrire le multiplexeur, et le 3ème le décodeur cité précédemment. Le 4ème process gère le signal avl_data_masked_s. Le 5ème est un registre permettant de mettre la valeur future du contrôle du compteur dans la valeur présente. Le 6ème process gère la valeur du compteur, grâce au signal de contrôle du compteur et à data_masked_s. Après les 6 process, les signaux waitrequest_s et readdatavalid_s sont définis grâce à l’état présent et aux signaux read et write. A la toute fin du code, les signaux readdata, waitrequest et readdatavalid sont assignés à leur signal de sortie correspondant. 
 
 ## Étape 3
 
